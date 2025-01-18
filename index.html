@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Гра з Дімою</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #87CEEB;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        #gameCanvas {
+            display: block;
+            margin: 0 auto;
+            background-color: #ffecb3; /* Пляжний фон */
+        }
+
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            font-weight: bold;
+            color: #ff6347;
+        }
+
+        /* Стиль для персонажа Діми */
+        .dima {
+            width: 40px;
+            height: 60px;
+            background-color: #ff6347; /* Діма - рожевий, гавайка */
+            position: absolute;
+            left: 50px;
+            bottom: 0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        const dimaWidth = 40;
+        const dimaHeight = 60;
+        const gravity = 1.5;
+        let isJumping = false;
+        let jumpHeight = 0;
+        let score = 0;
+        let gameSpeed = 2;
+        let gameInterval;
+        let crabs = [];
+        let birds = [];
+        let dayTime = false;
+        let sunPosition = 0;
+        let gameOver = false;
+
+        // Персонаж Діма
+        const dima = {
+            x: 50,
+            y: canvas.height - dimaHeight,
+            width: dimaWidth,
+            height: dimaHeight,
+            color: 'orange',
+            jump() {
+                if (!isJumping) {
+                    isJumping = true;
+                    jumpHeight = 20;
+                }
+            },
+            move() {
+                if (isJumping) {
+                    this.y -= jumpHeight;
+                    jumpHeight -= gravity;
+                    if (this.y >= canvas.height - this.height) {
+                        this.y = canvas.height - this.height;
+                        isJumping = false;
+                    }
+                }
+            }
+        };
+
+        // Краби
+        function createCrab() {
+            const crabWidth = 30;
+            const crabHeight = 30;
+            const crabY = canvas.height - crabHeight;
+            const crabX = canvas.width;
+            crabs.push({ x: crabX, y: crabY, width: crabWidth, height: crabHeight });
+        }
+
+        // Чайки
+        function createBird() {
+            const birdWidth = 30;
+            const birdHeight = 20;
+            const birdY = Math.random() * 150 + 50;
+            const birdX = canvas.width;
+            birds.push({ x: birdX, y: birdY, width: birdWidth, height: birdHeight });
+        }
+
+        // Оновлення гри
+        function updateGame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Фон пляжу
+            ctx.fillStyle = "#FFD700";
+            ctx.fillRect(0, canvas.height - 40, canvas.width, 40); // Пляж
+
+            // Сонце та час доби
+            ctx.beginPath();
+            ctx.arc(canvas.width - 100, sunPosition, 30, 0, Math.PI * 2);
+            ctx.fillStyle = "#FFD700";
+            ctx.fill();
+            if (score > 200 && !dayTime) {
+                sunPosition = Math.min(sunPosition + 1, 100);
+            }
+            if (score > 400) {
+                dayTime = true;
+            }
+
+            // Діма
+            dima.move();
+            ctx.fillStyle = dima.color;
+            ctx.fillRect(dima.x, dima.y, dima.width, dima.height);
+
+            // Краби
+            for (let i = 0; i < crabs.length; i++) {
+                let crab = crabs[i];
+                crab.x -= gameSpeed;
+                ctx.fillStyle = "#8B4513";
+                ctx.fillRect(crab.x, crab.y, crab.width, crab.height);
+                if (crab.x < dima.x + dima.width && crab.x + crab.width > dima.x && crab.y < dima.y + dima.height) {
+                    gameOver = true;
+                    showGameOver();
+                }
+            }
+
+            // Чайки
+            for (let i = 0; i < birds.length; i++) {
+                let bird = birds[i];
+                bird.x -= gameSpeed;
+                ctx.fillStyle = "#000000";
+                ctx.fillRect(bird.x, bird.y, bird.width, bird.height);
+                if (bird.x < dima.x + dima.width && bird.x + bird.width > dima.x && bird.y < dima.y + dima.height) {
+                    gameOver = true;
+                    showGameOver();
+                }
+            }
+
+            // Очки
+            score++;
+            ctx.fillStyle = "#000000";
+            ctx.font = "20px Courier New";
+            ctx.fillText("Очки: " + score, 10, 30);
+
+            // Зміна швидкості гри
+            if (score % 50 === 0) {
+                gameSpeed += 0.1;
+            }
+
+            // Генерація перешкод
+            if (score % 100 === 0) {
+                let numberOfCrabs = Math.floor(Math.random() * 3) + 1;
+                for (let i = 0; i < numberOfCrabs; i++) {
+                    createCrab();
+                }
+                if (score % 200 === 0) {
+                    createBird();
+                }
+            }
+
+            if (gameOver) {
+                clearInterval(gameInterval);
+            }
+        }
+
+        // Показати кінець гри
+        function showGameOver() {
+            const gameOverText = "Гра закінчена! Очки: " + score;
+            const gameOverElement = document.createElement("div");
+            gameOverElement.textContent = gameOverText;
+            gameOverElement.classList.add("game-over");
+            document.body.appendChild(gameOverElement);
+        }
+
+        // Подія миші для стрибка
+        canvas.addEventListener("click", function() {
+            if (!isJumping && !gameOver) {
+                dima.jump();
+            }
+        });
+
+        // Початок гри
+        function startGame() {
+            gameInterval = setInterval(updateGame, 1000 / 60);
+        }
+
+        // Запуск гри
+        startGame();
+    </script>
+</body>
+</html>
